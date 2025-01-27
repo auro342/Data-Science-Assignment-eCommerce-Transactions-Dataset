@@ -1,0 +1,30 @@
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.preprocessing import StandardScaler
+
+# Feature engineering: combine customer and transaction data
+customer_features = merged_data.groupby('CustomerID').agg({
+    'TotalValue': 'sum',
+    'Quantity': 'sum',
+    'Price': 'mean'
+}).reset_index()
+
+# Normalize features
+scaler = StandardScaler()
+scaled_features = scaler.fit_transform(customer_features.iloc[:, 1:])
+
+# Compute similarity scores
+similarity_matrix = cosine_similarity(scaled_features)
+
+# Recommend top 3 similar customers
+lookalikes = {}
+for i, customer_id in enumerate(customer_features['CustomerID'][:20]):
+    similar_indices = similarity_matrix[i].argsort()[-4:-1][::-1]
+    lookalikes[customer_id] = [(customer_features['CustomerID'][idx], similarity_matrix[i][idx]) for idx in similar_indices]
+
+# Save to CSV
+lookalike_df = pd.DataFrame([
+    {'CustomerID': cid, 'SimilarCustomer': sim[0], 'SimilarityScore': sim[1]}
+    for cid, sims in lookalikes.items()
+    for sim in sims
+])
+lookalike_df.to_csv("FirstName_LastName_Lookalike.csv", index=False)
